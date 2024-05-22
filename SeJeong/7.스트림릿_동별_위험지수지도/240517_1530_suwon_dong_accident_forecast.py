@@ -6,7 +6,7 @@
 ###############################################################################
 # 아나콘다 파워셸 프롬프트
 #   >>> conda activate YSIT24
-#   >>> cd E:/Workspace/!project_team/3.git_upload_before/ (파일저장경로)
+#   >>> cd E:/Workspace/!project_team/SeJeong/7.스트림릿_동별_위험지수지도/ (파일저장경로)
 #   >>> streamlit run 240517_1530_suwon_dong_accident_forecast.py
 ###############################################################################
 # 라이브러리
@@ -169,79 +169,6 @@ for dong in dong_list :
     dong_risk['노면상태'] = road_surface
     dong_risk['기상상태'] = weather
 
-#%% 수원시 지도 생성
-###############################################################################
-with open('30.수원시_법정경계(읍면동).geojson', encoding='utf-8') as f:
-    data = json.load(f)
-    
-# json 파일 데이터와 일치
-#   - "EMD_KOR_NM": "파장동"
-sw_risk = dong_risk['위험지수']
-sw_risk = sw_risk.reset_index()
-
-#%%
-name_list = []
-# 각 '동'에 대한 팝업 추가
-#   -> 오류 발생 : '상광교동', '장지동' 교통사고 데이터 기준 없음
-#    -> 네이버 검색 결과 '상광교동 = 연무동', '장지동 = 세류동'
-#        -> 해당 값으로 지도에 위험지수 표시 
-for feature in data['features']:
-    properties = feature['properties']
-    name = properties['EMD_KOR_NM']    
-    
-    name_list.append(name)
-    
-d_l = list(dong_list)
-
-for n in name_list :
-    if n not in d_l :
-        print(n)
-## 상광교동 -> 연무동
-## 장지동 -> 세류동
-
-sw_plus = pd.DataFrame({'index' : ['상광교동', '장지동'],
-                        '위험지수' : [sw_risk.loc[sw_risk['index']=='연무동', '위험지수'].values[0], 
-                                  sw_risk.loc[sw_risk['index']=='세류동', '위험지수'].values[0]]})
-sw_risk = pd.concat([sw_risk, sw_plus])
-
-#%%
-# 수원시 중심부의 위도, 경도
-center = [37.2636, 127.0286]
-
-# 맵이 center에 위치하고, zoom 레벨은 12로 시작하는 맵 m 생성
-m = folium.Map(location=center, zoom_start=12)
-
-# folium.Choropleth 레이어를 만들고, 맵 m에 추가
-folium.Choropleth(
-    geo_data= data,
-    data = sw_risk,
-    columns=('index','위험지수'),
-    key_on='feature.properties.EMD_KOR_NM',
-    fill_color='YlOrRd',
-    legend_name='교통사고 발생 가능성',
-    ).add_to(m)
-
-
-#%%  
-# 각 '동'에 대한 팝업 추가
-#   - 지도에서 '동' 클릭 시 팝업 출력
-for feature in data['features']:
-    properties = feature['properties']
-    name = properties['EMD_KOR_NM']  
-    sw_risk['index'] = sw_risk['index'].astype(str)
-    sw_risk_rounded = sw_risk.loc[sw_risk['index']==name, '위험지수'].values[0]
-    popup_text = f'{name}<br>사고위험지수: {sw_risk_rounded}'
-    
-    popup = folium.Popup(popup_text, max_width=300)
-    
-    folium.GeoJson(
-        feature,
-        name=name,
-        style_function=lambda x: {'fillColor': 'transparent', 'color': 'black'},
-        tooltip=name,
-        popup=popup
-    ).add_to(m)
-    
 #%% 스트림릿 출력    
 ###############################################################################
 # 조건 일시
@@ -262,6 +189,79 @@ dong_risk.columns = ['동', '위험지수', '날씨', '온도', '습도', '강�
 dong_risk = dong_risk.loc[:, ['구', '동', '위험지수', '날씨', '온도', '습도', '강수량', '주야간', '노면상태', '기상상태']]
 
 st.dataframe(dong_risk)
+
+#%% 수원시 지도 생성
+###############################################################################
+with open('30.수원시_법정경계(읍면동).geojson', encoding='utf-8') as f:
+    data = json.load(f)
+    
+# json 파일 데이터와 일치
+#   - "EMD_KOR_NM": "파장동"
+sw_risk = dong_risk.loc[:, ['동','위험지수']]
+
+#%%
+name_list = []
+# 각 '동'에 대한 팝업 추가
+#   -> 오류 발생
+for feature in data['features']:
+    properties = feature['properties']
+    name = properties['EMD_KOR_NM']    
+    
+    name_list.append(name)
+    
+d_l = list(dong_list)
+
+for n in name_list :
+    if n not in d_l :
+        print(n)
+## 상광교동 -> 연무동
+## 장지동 -> 세류동
+
+sw_plus = pd.DataFrame({'동' : ['상광교동', '장지동'],
+                        '위험지수' : [sw_risk.loc[sw_risk['동']=='연무동', '위험지수'].values[0], 
+                                  sw_risk.loc[sw_risk['동']=='세류동', '위험지수'].values[0]]})
+sw_risk = pd.concat([sw_risk, sw_plus])
+
+# 수원시 중심부의 위도, 경도
+center = [37.2636, 127.0286]
+
+# 맵이 center에 위치하고, zoom 레벨은 12로 시작하는 맵 m 생성
+m = folium.Map(location=center, zoom_start=12)
+
+# folium.Choropleth 레이어를 만들고, 맵 m에 추가
+folium.Choropleth(
+    geo_data= data,
+    data = sw_risk,
+    columns=('동','위험지수'),
+    key_on='feature.properties.EMD_KOR_NM',
+    fill_color='YlOrRd',
+    legend_name='교통사고 발생 가능성',
+    ).add_to(m)
+
+
+#%%  
+# 각 '동'에 대한 팝업 추가
+#   - 지도에서 '동' 클릭 시 팝업 출력
+for feature in data['features']:
+    properties = feature['properties']
+    name = properties['EMD_KOR_NM']  
+    sw_risk['동'] = sw_risk['동'].astype(str)
+    sw_risk_rounded = sw_risk.loc[sw_risk['동']==name, '위험지수'].values[0]
+    popup_text = f'{name}<br>사고위험지수: {sw_risk_rounded}'
+    
+    popup = folium.Popup(popup_text, max_width=300)
+    
+    folium.GeoJson(
+        feature,
+        name=name,
+        style_function=lambda x: {'fillColor': 'transparent', 'color': 'black'},
+        tooltip=name,
+        popup=popup
+    ).add_to(m)
+    
+
+#%% 스트림릿 출력    
+###############################################################################
 
 # 스트림릿 애플리케이션을 구성
 st.markdown('<h1 style="text-align: center;">위험지수 지도</h1>', unsafe_allow_html=True)
