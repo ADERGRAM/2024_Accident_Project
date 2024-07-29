@@ -7,7 +7,7 @@ Original file is located at
     https://colab.research.google.com/drive/10ga6CcgDGGqWE9L80SCHi8FCYPwK1By_
 """
 
-!pip install xgboost
+!pip install catboost
 
 from catboost import CatBoostRegressor
 
